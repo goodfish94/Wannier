@@ -93,6 +93,21 @@ def gen_hk(k, hrdat, rsub):
     return hk
 
 
+
+def gen_hk_2d(k, hrdat, rsub):
+    norb = hrdat.shape[-1]
+    hk = np.zeros((len(k), norb, norb), dtype=np.complex128)
+    R = hrdat.shape[0]
+    Rmax = np.round( (R-1)/2 ).astype(np.int64)
+    for ix in range(-Rmax,Rmax+1):
+        for iy in range(-Rmax, Rmax + 1):
+            for io1 in range(0,norb):
+                for io2 in range(0,norb):
+                    dr = np.asarray([ix,iy]) + rsub[io2] - rsub[io1]
+                    hk[:, io1,io2] += hrdat[ix,iy, io1,io2] * np.exp( 1j * k @ dr)
+    return hk
+
+
 def avec_to_bvec(a123):
     a1, a2, a3 = a123[0], a123[1], a123[2]
     v = np.dot( a1, np.cross(a2,a3))
