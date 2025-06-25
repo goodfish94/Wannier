@@ -8,6 +8,7 @@ def get_pauli_mat():
     s3 = np.asarray([[1., 0.], [0., -1.]], dtype=np.complex128)
     return [s0,s1,s2,s3]
 
+
 def generate_kpath(HSP_list, Nk=20):
     # for given kpt_list=[k0, k1, ..., k0], generate kpoints on the path.
     # each path has Nk+1 pts, from ki to ki+1
@@ -18,6 +19,20 @@ def generate_kpath(HSP_list, Nk=20):
             kpt = k1 + ik * kstep
             kpath.append(kpt)
     return np.asarray( kpath )
+
+
+
+def generate_kmesh_3d(b123, Nk=20):
+    # for given kpt_list=[k0, k1, ..., k0], generate kpoints on the path.
+    # each path has Nk+1 pts, from ki to ki+1
+    kmesh = [] 
+    for i in range(0, Nk):
+        for j in range(0, Nk):
+            for k in range(0, Nk):
+                kpt = (i / Nk) * b123[0] + (j / Nk) * b123[1] + (k / Nk) * b123[2]
+                kmesh.append(kpt)
+    kmesh = np.asarray(kmesh)
+    return kmesh 
 
 
 def gen_lenk(klist):
@@ -74,8 +89,21 @@ def get_hk_from_hop(k, Rlist, hop, rsub):
             for io2 in range(0, norb):
                 r = Rlist[i] + rsub[io2] - rsub[io1]
                 hk[:, io1, io2] += hop[i, io1, io2] * np.exp(1j * k @ r)
-    hk = np.asarray(hk)
     return hk
+
+
+
+def get_dhk_from_hop(k, Rlist, hop, rsub ):
+    norb = hop.shape[-1]
+
+    # hk = np.zeros((len(k), hop.shape[-1], hop.shape[-2]), dtype=np.complex128)
+    dhk =  np.zeros((k.shape[-1], len(k), hop.shape[-1], hop.shape[-2]), dtype=np.complex128)
+    for i in range(0, len(Rlist)):
+        for io1 in range(0, norb):
+            for io2 in range(0, norb):
+                r = Rlist[i] + rsub[io2] - rsub[io1]
+                dhk[:, :, io1, io2] += np.einsum('k, d->dk', hop[i,io1, io2] *  np.exp(1j * k @ r),  1j * r )
+    return dhk
 
 
 def gen_hk(k, hrdat, rsub):
@@ -93,21 +121,6 @@ def gen_hk(k, hrdat, rsub):
     return hk
 
 
-
-def gen_hk_2d(k, hrdat, rsub):
-    norb = hrdat.shape[-1]
-    hk = np.zeros((len(k), norb, norb), dtype=np.complex128)
-    R = hrdat.shape[0]
-    Rmax = np.round( (R-1)/2 ).astype(np.int64)
-    for ix in range(-Rmax,Rmax+1):
-        for iy in range(-Rmax, Rmax + 1):
-            for io1 in range(0,norb):
-                for io2 in range(0,norb):
-                    dr = np.asarray([ix,iy]) + rsub[io2] - rsub[io1]
-                    hk[:, io1,io2] += hrdat[ix,iy, io1,io2] * np.exp( 1j * k @ dr)
-    return hk
-
-
 def avec_to_bvec(a123):
     a1, a2, a3 = a123[0], a123[1], a123[2]
     v = np.dot( a1, np.cross(a2,a3))
@@ -117,6 +130,24 @@ def avec_to_bvec(a123):
     b3 = 2.0 * np.pi / v * np.cross(a1, a2)
 
     return np.asarray([b1,b2,b3])
+
+
+
+
+def avec_to_bvec_2D(a12):
+    a1, a2, a3 = np.zeros(3), np.zeros(3), np.zeros(3)
+    a1[0:2] = a12[0]
+    a2[0:2] = a12[1]
+    a3[2] = 1.0 
+    
+    v = np.dot( a1, np.cross(a2,a3))
+
+    b1 = 2.0 * np.pi / v * np.cross(a2,a3)
+    b2 = 2.0 * np.pi / v * np.cross(a3, a1)
+    b3 = 2.0 * np.pi / v * np.cross(a1, a2)
+
+    return np.asarray([b1[0:2], b2[0:2]]) 
+
 
 def get_kbz_2d(N):
     k = np.zeros((N,N,2), dtype=np.complex128)
@@ -128,28 +159,83 @@ def get_kbz_2d(N):
 
 
 
+def get_hop_from_hk(Rlist, hk, klist):
+    # version without sublattice 
+    hop = np.zeros((len(Rlist)), dtype=np.complex128)
+    
+    for i, R in enumerate(Rlist):
+        kR = klist@R 
+        form = np.exp( 2.0 * np.pi * (-1j) * kR )
+        hop[i] = np.sum( form * hk )/len(klist) 
+        
+    return hop  
 
-def get_unitcell_boundary( a, ax):
 
+
+
+
+def get_unitcell_boundary( a, ax, shift_vec = np.asarray([0., 0.])):
+
+    
     cut = 0.5 * a / np.sqrt(3.0)
-    ax.plot([-cut, cut], [0.5 * a, 0.5 * a], color='black')
-    ax.plot([-cut, cut], [-0.5 * a, -0.5 * a], color='black')
+    ax.plot([ shift_vec[0]-cut,shift_vec[0]+ cut], [shift_vec[1]+0.5 * a, shift_vec[1]+0.5 * a], color='black')
+    ax.plot([shift_vec[0]-cut, shift_vec[0]+cut], [shift_vec[1]-0.5 * a, shift_vec[1]-0.5 * a], color='black')
 
     x = np.linspace(0, 0.5 * a, 100)
     y = - x / np.sqrt(3.0) + a / np.sqrt(3)
-    ax.plot(y, x, color='black')
+    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color='black')
 
     x = np.linspace(0, 0.5 * a, 100)
     y = x / np.sqrt(3.0) - a / np.sqrt(3)
-    ax.plot(y, x, color='black')
+    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color='black')
 
     x = np.linspace(0, -0.5 * a, 100)
     y = x / np.sqrt(3.0) + a / np.sqrt(3)
-    ax.plot(y, x, color='black')
+    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color='black')
 
     x = np.linspace(0, -0.5 * a, 100)
     y = -x / np.sqrt(3.0) - a / np.sqrt(3)
-    ax.plot(y, x, color='black')
+    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color='black')
+
+
+
+
+
+
+def if_in_hex_bz(k, b1,b2,b3):
+    # check if vector in the hex bz 
+    bmode = np.linalg.norm(b1)
+    if( np.abs(k@b1) > 0.5 * bmode**2 ): return False 
+    if( np.abs(k@b2) > 0.5 * bmode**2 ): return False 
+    if( np.abs(k@b3) > 0.5 * bmode**2 ): return False 
+    return True 
+
+
+
+def get_unitcell_boundary_shift( a, Rshift, ax):
+
+    cut = 0.5 * a / np.sqrt(3.0)
+    ax.plot( np.asarray( [-cut, cut]  )+Rshift[0], np.asarray( [0.5 * a, 0.5 * a]) + Rshift[1], color='black')
+    ax.plot( np.asarray( [-cut, cut] )+Rshift[0], np.asarray( [-0.5 * a, -0.5 * a]) + Rshift[1], color='black')
+
+    x = np.linspace(0, 0.5 * a, 100)
+    y = - x / np.sqrt(3.0) + a / np.sqrt(3)
+    ax.plot(y +Rshift[0], x+ Rshift[1], color='black')
+
+    x = np.linspace(0, 0.5 * a, 100)
+    y = x / np.sqrt(3.0) - a / np.sqrt(3)
+    ax.plot(y +Rshift[0], x+ Rshift[1], color='black')
+
+    x = np.linspace(0, -0.5 * a, 100)
+    y = x / np.sqrt(3.0) + a / np.sqrt(3)
+    ax.plot(y +Rshift[0], x+ Rshift[1], color='black')
+
+    x = np.linspace(0, -0.5 * a, 100)
+    y = -x / np.sqrt(3.0) - a / np.sqrt(3)
+    ax.plot(y +Rshift[0], x+ Rshift[1], color='black')
+
+
+
 
 
 
