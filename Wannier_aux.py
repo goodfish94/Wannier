@@ -8,7 +8,6 @@ def get_pauli_mat():
     s3 = np.asarray([[1., 0.], [0., -1.]], dtype=np.complex128)
     return [s0,s1,s2,s3]
 
-
 def generate_kpath(HSP_list, Nk=20):
     # for given kpt_list=[k0, k1, ..., k0], generate kpoints on the path.
     # each path has Nk+1 pts, from ki to ki+1
@@ -19,20 +18,6 @@ def generate_kpath(HSP_list, Nk=20):
             kpt = k1 + ik * kstep
             kpath.append(kpt)
     return np.asarray( kpath )
-
-
-
-def generate_kmesh_3d(b123, Nk=20):
-    # for given kpt_list=[k0, k1, ..., k0], generate kpoints on the path.
-    # each path has Nk+1 pts, from ki to ki+1
-    kmesh = [] 
-    for i in range(0, Nk):
-        for j in range(0, Nk):
-            for k in range(0, Nk):
-                kpt = (i / Nk) * b123[0] + (j / Nk) * b123[1] + (k / Nk) * b123[2]
-                kmesh.append(kpt)
-    kmesh = np.asarray(kmesh)
-    return kmesh 
 
 
 def gen_lenk(klist):
@@ -174,28 +159,28 @@ def get_hop_from_hk(Rlist, hk, klist):
 
 
 
-def get_unitcell_boundary( a, ax, shift_vec = np.asarray([0., 0.])):
+def get_unitcell_boundary( a, ax, shift_vec = np.asarray([0., 0.]), c= 'black', lw =3.0):
 
     
     cut = 0.5 * a / np.sqrt(3.0)
-    ax.plot([ shift_vec[0]-cut,shift_vec[0]+ cut], [shift_vec[1]+0.5 * a, shift_vec[1]+0.5 * a], color='black')
-    ax.plot([shift_vec[0]-cut, shift_vec[0]+cut], [shift_vec[1]-0.5 * a, shift_vec[1]-0.5 * a], color='black')
+    ax.plot([ shift_vec[0]-cut,shift_vec[0]+ cut], [shift_vec[1]+0.5 * a, shift_vec[1]+0.5 * a], color=c, lw=lw)
+    ax.plot([shift_vec[0]-cut, shift_vec[0]+cut], [shift_vec[1]-0.5 * a, shift_vec[1]-0.5 * a], color=c, lw=lw)
 
     x = np.linspace(0, 0.5 * a, 100)
     y = - x / np.sqrt(3.0) + a / np.sqrt(3)
-    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color='black')
+    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color=c, lw=lw)
 
     x = np.linspace(0, 0.5 * a, 100)
     y = x / np.sqrt(3.0) - a / np.sqrt(3)
-    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color='black')
+    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color=c, lw=lw)
 
     x = np.linspace(0, -0.5 * a, 100)
     y = x / np.sqrt(3.0) + a / np.sqrt(3)
-    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color='black')
+    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color=c, lw=lw)
 
     x = np.linspace(0, -0.5 * a, 100)
     y = -x / np.sqrt(3.0) - a / np.sqrt(3)
-    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color='black')
+    ax.plot(shift_vec[0]+y, shift_vec[1]+x, color=c, lw=lw)
 
 
 
