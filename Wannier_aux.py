@@ -279,3 +279,44 @@ def read_poscar(filename='POSCAR'):
 
 
 
+
+
+
+def get_berry_curvature_loop_findq(vk, k, dk1, dk2): 
+    # need to find dk when do the calculation s
+    # vk has shape of (Nk, norb) 
+
+    cutoff = 0.2 * np.linalg.norm(dk1)
+    BC = np.zeros( (len(vk)), dtype=np.complex128 ) 
+    for ik, kit in enumerate(k):
+        k1 = kit + dk1 
+        k2 = kit + dk1 + dk2 
+        k3 = kit + dk2 
+
+        idx1 = np.argmin( np.linalg.norm(k - k1, axis=1) ) 
+        idx2 = np.argmin( np.linalg.norm(k - k2, axis=1) ) 
+        idx3 = np.argmin( np.linalg.norm(k - k3, axis=1) ) 
+
+
+        if( np.linalg.norm(k[idx1]-k1) > cutoff or np.linalg.norm(k[idx2]-k2) > cutoff or np.linalg.norm(k[idx3]-k3) > cutoff  ):
+            BC[ik] = 0.0 
+            continue
+    
+
+        v1 = vk[ik]
+        v2 = vk[idx1]
+        v3 = vk[idx2] 
+        v4 = vk[idx3]
+
+        ov1 = np.conj(v1) @ v2 
+        ov2 = np.conj(v2) @ v3 
+        ov3 = np.conj(v3) @ v4 
+        ov4 = np.conj(v4) @ v1 
+        loop = ov1 * ov2 * ov3 * ov4 
+        
+        if( np.abs(loop) < 0.1 ): # overlap is bad, set BC to 0 
+            BC[ik] = 0.0 
+        else:
+
+            BC[ik] =  np.angle(loop)
+    return BC 
